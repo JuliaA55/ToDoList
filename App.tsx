@@ -5,15 +5,24 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  ImageBackground,
+  Modal,
 } from "react-native";
 import axios from "axios";
 import TaskList from "./components/TaskList";
+import TaskForm from "./components/TaskForm";
 import { Ionicons } from "@expo/vector-icons";
-
+interface Task {
+  id: number;
+  todo: string;
+  completed: boolean;
+}
 export default function HomeScreen() {
-  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isFormVisible, setIsFormVisible] = useState(false);
 
+  
   useEffect(() => {
     axios
       .get("https://dummyjson.com/todos")
@@ -24,7 +33,31 @@ export default function HomeScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  const addTask = (newTask: any) => {
+    fetch("https://dummyjson.com/todos/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+
+        todo: newTask.todo,
+        completed: false,
+        userId: 5,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const taskWithDefaults = {
+          ...newTask,
+          id: data.id,
+          status: "to-do",
+        };
+        setTasks([...tasks, taskWithDefaults]);
+      })
+      .catch((error) => console.error(error))
+      .finally(() => setIsFormVisible(false));
+  };
   return (
+    <ImageBackground  source={require('./assets/background.webp')} style={{ flex: 1 }}>
       <View style={styles.container}>
         <Text style={styles.title}>ODOT List</Text>
         <Text style={styles.date}>4th March 2018</Text>
@@ -34,10 +67,17 @@ export default function HomeScreen() {
           <TaskList tasks={tasks} />
         )}
 
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity style={styles.addButton}  onPress={() => setIsFormVisible(true)}>
           <Ionicons name="add" size={30} color="white" />
         </TouchableOpacity>
+
+        <Modal visible={isFormVisible} animationType="slide" transparent>
+          <View style={styles.modalContainer}>
+            <TaskForm onAddTask={addTask} onCancel={() => setIsFormVisible(false)} />
+          </View>
+        </Modal>
       </View>
+      </ImageBackground>
   );
 }
 
@@ -48,7 +88,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "lightblue",
   },
   title: {
     fontSize: 24,
@@ -74,6 +113,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     elevation: 5,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
 });
 
