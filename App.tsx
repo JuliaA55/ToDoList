@@ -8,15 +8,18 @@ import {
   ImageBackground,
   Modal,
 } from "react-native";
-import axios from "axios";
 import TaskList from "./components/TaskList";
 import TaskForm from "./components/TaskForm";
 import { Ionicons } from "@expo/vector-icons";
+import { getTasks, addTask } from "./taskService";
+import {setupDatabase} from "./db"
+
 interface Task {
   id: number;
   todo: string;
   completed: boolean;
 }
+
 export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -24,38 +27,22 @@ export default function HomeScreen() {
 
   
   useEffect(() => {
-    axios
-      .get("https://dummyjson.com/todos")
-      .then((response) => {
-        setTasks(response.data.todos);
-      })
-      .catch((error) => console.error(error))
-      .finally(() => setLoading(false));
+    async function loadTasks() {
+      await setupDatabase();
+      const storedTasks = await getTasks();
+      setTasks(storedTasks);
+      setLoading(false);
+    }
+    loadTasks();
   }, []);
 
-  const addTask = (newTask: any) => {
-    fetch("https://dummyjson.com/todos/add", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-
-        todo: newTask.todo,
-        completed: false,
-        userId: 5,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const taskWithDefaults = {
-          ...newTask,
-          id: data.id,
-          status: "to-do",
-        };
-        setTasks([...tasks, taskWithDefaults]);
-      })
-      .catch((error) => console.error(error))
-      .finally(() => setIsFormVisible(false));
+  const handleAddTask = async (newTask: { todo: string }) => {
+    await addTask(newTask.todo);
+    const updatedTasks = await getTasks();
+    setTasks(updatedTasks);
+    setIsFormVisible(false);
   };
+
   return (
     <ImageBackground  source={require('./assets/background.webp')} style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -73,7 +60,7 @@ export default function HomeScreen() {
 
         <Modal visible={isFormVisible} animationType="slide" transparent>
           <View style={styles.modalContainer}>
-            <TaskForm onAddTask={addTask} onCancel={() => setIsFormVisible(false)} />
+            <TaskForm onAddTask={handleAddTask} onCancel={() => setIsFormVisible(false)} />
           </View>
         </Modal>
       </View>
